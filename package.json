@@ -1,0 +1,18 @@
+{
+  "name": "music-player-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "libs": "node scripts/copy-libs.js",
+    "sync": "npm run libs && npx cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "jsmediatags": "^3.9.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  }
+}

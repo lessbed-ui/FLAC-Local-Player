@@ -1,0 +1,6 @@
+{
+  "appId": "com.example.musicplayer",
+  "appName": "Music Player",
+  "webDir": "www",
+  "backgroundColor": "#0f0f12"
+}
