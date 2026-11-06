@@ -244,6 +244,7 @@ async function clearAll(){
 }
 function stopAudio(){
   A.pause();A.removeAttribute('src');A.load();
+  try{if(NA)NA.stop()}catch(e){}
   if(objUrl){URL.revokeObjectURL(objUrl);objUrl=null}
   try{if('mediaSession'in navigator){navigator.mediaSession.metadata=null;navigator.mediaSession.playbackState='none'}}catch(e){}
 }
@@ -371,6 +372,39 @@ A.addEventListener('loadedmetadata',tick);
 A.addEventListener('play',syncPlay);A.addEventListener('pause',syncPlay);
 A.addEventListener('ended',next);
 A.addEventListener('error',()=>{if(A.getAttribute('src'))status('Can’t play this file on this device.')});
+
+/* ---------- Android app: background playback + lock-screen controls ---------- */
+const NA=(()=>{try{const c=window.Capacitor;return c&&(c.isNativePlatform?c.isNativePlatform():c.isNative)&&c.Plugins&&c.Plugins.NativeAudio||null}catch(e){return null}})();
+let artCache={id:null,b64:''},nTok=0;
+async function artOf(t){
+  if(!t||!t.cover)return'';
+  try{
+    const bm=await createImageBitmap(t.cover),s=Math.min(bm.width,bm.height),c=document.createElement('canvas');
+    c.width=c.height=320;c.getContext('2d').drawImage(bm,(bm.width-s)/2,(bm.height-s)/2,s,s,0,0,320,320);
+    return c.toDataURL('image/jpeg',.8).split(',')[1]||'';
+  }catch(e){return''}
+}
+async function nativeSync(){
+  if(!NA||cur<0||loaded!==cur)return;
+  const t=T[cur],tok=++nTok;
+  if(artCache.id!==t.id){const b=await artOf(t);artCache={id:t.id,b64:b};if(tok!==nTok)return}
+  try{NA.update({title:t.title,artist:t.artist,album:t.album,playing:playing(),position:A.currentTime||0,duration:dur(),art:artCache.b64})}catch(e){}
+}
+if(NA){
+  ['play','pause','seeked','loadedmetadata'].forEach(ev=>A.addEventListener(ev,nativeSync));
+  try{
+    NA.addListener('action',e=>{
+      switch(e&&e.action){
+        case'play':if(loaded===cur&&cur>=0)A.play().catch(()=>{});else toggle();break;
+        case'pause':A.pause();break;
+        case'toggle':toggle();break;
+        case'next':next();break;
+        case'prev':prev();break;
+        case'seek':if(loaded===cur&&e.position!=null)A.currentTime=e.position;break;
+      }
+    });
+  }catch(e){}
+}
 
 /* ---------- theme ---------- */
 const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;

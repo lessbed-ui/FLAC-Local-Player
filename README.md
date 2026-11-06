@@ -14,6 +14,7 @@ Requires Node 20+, JDK 17, and Android Studio.
 npm install
 npm run libs
 npx cap add android
+node scripts/setup-android.js   # adds background audio service
 npx cap sync android
 npx cap open android      # then press Run in Android Studio
 ```
@@ -31,3 +32,6 @@ npx cap open ios
 ## Changing the app
 Edit `www/index.html`, then run `npm run sync` and rebuild.
 Change the app ID and name in `capacitor.config.json` before publishing to a store.
+
+## Background audio
+`native/` holds a small Android plugin (foreground service + media session) that keeps music playing with the screen off and shows lock-screen controls. `scripts/setup-android.js` installs it into the generated `android/` project during the build.
