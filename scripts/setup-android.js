@@ -9,7 +9,7 @@ if (!fs.existsSync(app)) { console.error('android/ not found - run "npx cap add 
 // 1. Java sources (replaces the default MainActivity)
 const javaDir = path.join(app, 'java', ...pkg.split('.'));
 fs.mkdirSync(javaDir, { recursive: true });
-for (const f of ['MainActivity.java', 'MediaService.java', 'NativeAudioPlugin.java']) {
+for (const f of ['MainActivity.java', 'MediaService.java', 'NativeAudioPlugin.java', 'MusicLibraryPlugin.java']) {
   const text = fs.readFileSync(path.join(root, 'native', f), 'utf8').replace(/__PACKAGE__/g, pkg);
   fs.writeFileSync(path.join(javaDir, f), text);
 }
