@@ -81,8 +81,8 @@ public class MusicLibraryPlugin extends Plugin {
             try {
                 if (!force && libFile().exists()) {
                     try (BufferedReader br = new BufferedReader(new FileReader(libFile()))) {
-                        call.resolve(new JSObject(br.readLine()));
-                        return;
+                        JSObject cached = new JSObject(br.readLine());
+                        if (cached.optInt("v") == 2) { call.resolve(cached); return; }
                     } catch (Exception e) { /* rescan below */ }
                 }
                 String t = prefs().getString("tree", null);
@@ -91,9 +91,10 @@ public class MusicLibraryPlugin extends Plugin {
                 List<Object[]> docs = new ArrayList<>();
                 walk(getContext().getContentResolver(), tree, DocumentsContract.getTreeDocumentId(tree), docs);
                 JSArray arr = new JSArray();
-                for (Object[] d : docs) arr.put(meta((Uri) d[0], (String) d[1]));
+                for (Object[] d : docs) arr.put(meta((Uri) d[0], (String) d[1], (Long) d[2]));
                 JSObject res = new JSObject();
                 res.put("tracks", arr);
+                res.put("v", 2);
                 try (FileWriter fw = new FileWriter(libFile())) { fw.write(res.toString()); } catch (Exception e) { /* cache is optional */ }
                 call.resolve(res);
             } catch (Exception e) {
@@ -104,12 +105,12 @@ public class MusicLibraryPlugin extends Plugin {
 
     private void walk(ContentResolver cr, Uri tree, String docId, List<Object[]> out) {
         Uri kids = DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId);
-        try (Cursor c = cr.query(kids, new String[]{Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE}, null, null, null)) {
+        try (Cursor c = cr.query(kids, new String[]{Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE, Document.COLUMN_SIZE}, null, null, null)) {
             if (c == null) return;
             while (c.moveToNext()) {
                 String id = c.getString(0), name = c.getString(1), mime = c.getString(2);
                 if (Document.MIME_TYPE_DIR.equals(mime)) walk(cr, tree, id, out);
-                else if (EXT.contains(ext(name))) out.add(new Object[]{DocumentsContract.buildDocumentUriUsingTree(tree, id), name});
+                else if (EXT.contains(ext(name))) out.add(new Object[]{DocumentsContract.buildDocumentUriUsingTree(tree, id), name, c.getLong(3)});
             }
         } catch (Exception e) { /* skip unreadable folder */ }
     }
@@ -119,12 +120,12 @@ public class MusicLibraryPlugin extends Plugin {
         return d < 0 ? "" : n.substring(d + 1).toLowerCase(Locale.ROOT);
     }
 
-    private JSObject meta(Uri uri, String name) {
+    private JSObject meta(Uri uri, String name, long size) {
         JSObject o = new JSObject();
         String ext = ext(name);
         String title = null, artist = null, album = null;
         double len = 0;
-        int rate = 0, bits = 0;
+        int rate = 0, bits = 0, ch = 0;
         String art = "";
         MediaMetadataRetriever r = new MediaMetadataRetriever();
         try {
@@ -160,6 +161,7 @@ public class MusicLibraryPlugin extends Plugin {
                 if (n == 42 && b[0] == 'f' && b[1] == 'L' && b[2] == 'a' && b[3] == 'C') {
                     rate = ((b[18] & 0xFF) << 12) | ((b[19] & 0xFF) << 4) | ((b[20] & 0xFF) >> 4);
                     bits = (((b[20] & 1) << 4) | ((b[21] & 0xFF) >> 4)) + 1;
+                    ch = ((b[20] >> 1) & 7) + 1;
                 }
             } catch (Exception e) { /* ignore */ }
         }
@@ -172,6 +174,8 @@ public class MusicLibraryPlugin extends Plugin {
         o.put("length", len);
         o.put("rate", rate);
         o.put("bits", bits);
+        o.put("size", size);
+        o.put("ch", ch);
         o.put("art", art);
         return o;
     }
