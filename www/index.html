@@ -121,6 +121,46 @@ body.blurbg #np{background:#0c0c10}
 .chip{border:1.5px solid var(--line);border-radius:999px;min-height:40px;padding:0 16px;font-weight:600;width:auto!important;height:auto!important}
 .chip.on{background:var(--accent);color:var(--on);border-color:transparent}
 .cl em{font-style:normal;width:58px;text-align:right;font-variant-numeric:tabular-nums}
+
+#lib .top{justify-content:space-between}
+.ttl{margin:0;font-size:30px;line-height:1.15}
+.icb{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--line);font-size:22px;flex:none}
+#lib{padding-bottom:250px}#idx{bottom:240px}
+#pill{bottom:calc(env(safe-area-inset-bottom,0px) + 88px)}
+#toast{bottom:calc(env(safe-area-inset-bottom,0px) + 190px)}
+#set{padding-bottom:180px}
+#nav{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:25;display:flex;gap:4px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:30px}
+#nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:56px;border-radius:24px;color:var(--sub);font-size:12px;font-weight:700}
+#nav i{font-style:normal;font-size:22px;line-height:1}
+#nav .on{background:var(--sel);color:var(--accent)}
+body.blurbg #nav{backdrop-filter:blur(18px)}
+#vmenu{position:fixed;inset:0;z-index:40}
+.vm{position:absolute;top:calc(env(safe-area-inset-top,0px) + 70px);right:16px;width:min(280px,82vw);background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:8px;box-shadow:0 18px 50px -18px rgba(0,0,0,.6)}
+body.blurbg .vm{background:rgba(24,24,30,.88);backdrop-filter:blur(18px)}
+.vm button{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:52px;padding:0 16px;border-radius:14px;font-weight:600;text-align:left}
+.vm button b{color:var(--accent)}
+#list.v-compact .row .fg{min-height:64px;padding:6px 8px;gap:12px}
+#list.v-compact .th{width:52px;height:52px;border-radius:12px}
+#list.v-compact .tx small{display:none}#list.v-compact .tx b{font-size:16px}
+#list.grid{display:grid;gap:12px 10px}
+#list.grid .row{margin:0;overflow:visible;border-radius:14px;min-height:0}
+#list.grid .row .bg{display:none!important}
+#list.grid .row .fg{flex-direction:column;align-items:stretch;gap:6px;padding:0;min-height:0;background:transparent}
+#list.grid .row.on .fg{background:transparent}
+#list.grid .row.on .th{outline:2px solid var(--accent);outline-offset:-2px}
+#list.grid .th{width:100%;height:auto;aspect-ratio:1;border-radius:14px}
+#list.grid .tx{gap:0}
+#list.grid .tx b{font-size:13px;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#list.grid .tx>span{font-size:12px;color:var(--sub)}
+#list.grid .tx small{display:none}
+#list.v-small{grid-template-columns:repeat(4,1fr);gap:12px 8px}
+#list.v-small .tx b{font-size:11px}#list.v-small .tx>span{font-size:10px}
+#list.v-medium{grid-template-columns:repeat(3,1fr)}
+#list.v-blocks{grid-template-columns:repeat(2,1fr)}
+#list.v-blocks .row .fg{display:block;position:relative;border-radius:18px;overflow:hidden}
+#list.v-blocks .th{border-radius:18px}
+#list.v-blocks .tx{position:absolute;left:0;right:0;bottom:0;padding:34px 12px 10px;background:linear-gradient(transparent,rgba(0,0,0,.82));color:#fff;border-radius:0 0 18px 18px}
+#list.v-blocks .tx b{font-size:15px;color:#fff}#list.v-blocks .tx>span{color:#e4e4ea}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
@@ -132,19 +172,23 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <div id="bgArt" hidden></div>
 <main class="scr" id="lib">
-  <div class="top"><button class="pillbtn" id="openSet">⚙ Settings</button></div>
-  <div class="hero"><div class="ic"><svg viewBox="0 0 66 40" style="filter:brightness(0) invert(1)"><use href="#wave"/></svg></div><h1>All Songs</h1></div>
+  <div class="top"><div><h1 class="ttl">Your music</h1><p id="stat" role="status"></p></div><button class="icb" id="bView" aria-label="Change layout" aria-haspopup="menu">▦</button></div>
+  <input id="q" type="search" placeholder="Search songs, artists, albums" hidden>
   <div class="acts">
     <button class="pillbtn" id="bShuf" aria-label="Shuffle all">⤨</button>
     <button class="pillbtn" id="bPlay" aria-label="Play all">▶</button>
-    <button class="pillbtn" id="bSearch" aria-label="Search">⌕</button>
     <button class="pillbtn" id="bFav" aria-label="Show favorites only">♡</button>
   </div>
-  <input id="q" type="search" placeholder="Search songs, artists, albums" hidden>
-  <p id="stat" role="status"></p>
   <div id="list"></div>
 </main>
 <nav id="idx" aria-label="Jump to letter"></nav>
+
+<nav id="nav" aria-label="Main">
+  <button data-t="home" class="on"><i>⌂</i><span>Home</span></button>
+  <button data-t="search"><i>⌕</i><span>Search</span></button>
+  <button data-t="set"><i>⚙</i><span>Settings</span></button>
+</nav>
+<div id="vmenu" hidden><div class="vm" role="menu"></div></div>
 
 <div id="pill" hidden>
   <button class="go" id="pillGo" aria-label="Open player"><span class="th" id="pTh"></span><span class="tx"><b id="pT"></b><span id="pA" style="color:var(--sub)"></span></span></button>
@@ -179,7 +223,6 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </section>
 
 <section class="scr" id="set" hidden>
-  <button class="pillbtn" id="setBack" style="align-self:flex-start;margin:8px 0">← Back</button>
   <h2>Settings</h2>
   <button class="item" id="chFolder"><span>Music folder<small id="folderName">Not chosen</small></span><span>Change</span></button>
   <button class="item" id="rescan"><span>Rescan library<small>Pick up songs you added or removed</small></span><span>Scan</span></button>
@@ -266,7 +309,7 @@ async function loadLibrary(force){
 }
 async function pickFolder(){
   try{await Lib.pickFolder()}catch(e){return}
-  $('#set').hidden=true;await loadLibrary(true);
+  show('lib');await loadLibrary(true);
 }
 
 /* ---------- queue + playback ---------- */
@@ -320,12 +363,13 @@ function render(){
 }
 function show(v){
   view=v;$('#np').hidden=v!=='np';$('#qs').hidden=v!=='q';$('#set').hidden=v!=='set';$('#eq').hidden=v!=='eq';
-  $('#pill').style.display=v==='lib'?'':'none';
+  const main=v==='lib'||v==='set';$('#pill').style.display=main?'':'none';$('#nav').style.display=main?'':'none';
+  if(main)setNav(v==='set'?'set':!$('#q').hidden?'search':'home');
   if(v==='lib')libVis(true);else if(v==='np')setTimeout(()=>{if(view!=='lib')libVis(false)},240);else libVis(false);
   if(v==='q')renderQ();
 }
 function libVis(on){$('#lib').style.visibility=on?'':'hidden';$('#idx').style.visibility=on?'':'hidden'}
-window.__back=()=>{if(view==='eq'){show('set');return true}if(view==='q'){show('np');return true}if(view==='set'){show('lib');return true}if(view==='np'){minimize();return true}return false};
+window.__back=()=>{if(!$('#vmenu').hidden){$('#vmenu').hidden=true;return true}if(view==='lib'&&!$('#q').hidden){tab('home');return true}if(view==='eq'){show('set');return true}if(view==='q'){show('np');return true}if(view==='set'){show('lib');return true}if(view==='np'){minimize();return true}return false};
 function minimize(){const n=$('#np');libVis(true);n.style.transition='transform .2s';n.style.transform='translateY(100%)';setTimeout(()=>{show('lib');n.style.transition='';n.style.transform=''},200)}
 document.addEventListener('click',e=>{
   const j=e.target.closest('[data-j]');
@@ -334,16 +378,16 @@ document.addEventListener('click',e=>{
 
 /* swipe right = play next, swipe left = remove (queue only), tap = play */
 function swipe(host,o){
-  let sr=null,sx=0,sy=0,lock='',dx=0;
+  let sr=null,sx=0,sy=0,lock='',dx=0,lp=null,lpf=false;
   const end=()=>{if(!sr)return;const fg=sr.querySelector('.fg');fg.style.transition='transform .18s';fg.style.transform='';setTimeout(()=>fg.style.transition='',200);const rr=sr;setTimeout(()=>rr.classList.remove('left','sw'),200);sr=null};
-  host.addEventListener('pointerdown',e=>{sr=e.target.closest('.row');sx=e.clientX;sy=e.clientY;lock='';dx=0});
+  host.addEventListener('pointerdown',e=>{sr=e.target.closest('.row');sx=e.clientX;sy=e.clientY;lock='';dx=0;clearTimeout(lp);lpf=false;if(sr&&host.classList.contains('grid')&&o.right){const r0=sr;lp=setTimeout(()=>{lpf=true;o.right(+r0.dataset.i)},500)}});
   host.addEventListener('pointermove',e=>{
     if(!sr)return;const x=e.clientX-sx,y=e.clientY-sy;
     if(!lock&&(Math.abs(x)>10||Math.abs(y)>10))lock=Math.abs(x)>Math.abs(y)?'h':'v';
-    if(lock==='h'){dx=Math.max(o.left?-160:0,Math.min(x,160));sr.classList.add('sw');sr.classList.toggle('left',dx<0);sr.querySelector('.fg').style.transform='translateX('+dx+'px)'}
+    if(lock)clearTimeout(lp);if(lock==='h'&&!host.classList.contains('grid')){dx=Math.max(o.left?-160:0,Math.min(x,160));sr.classList.add('sw');sr.classList.toggle('left',dx<0);sr.querySelector('.fg').style.transform='translateX('+dx+'px)'}
   });
   host.addEventListener('pointerup',()=>{
-    if(!sr)return;const i=+sr.dataset.i,l=lock,d=dx;end();
+    clearTimeout(lp);if(!sr)return;const i=+sr.dataset.i,l=lock,d=dx;end();if(lpf)return;
     if(l==='')o.tap&&o.tap(i);else if(l==='h'){if(d>90&&o.right)o.right(i);else if(d<-90&&o.left)o.left(i)}
   });
   host.addEventListener('pointercancel',end);
@@ -353,9 +397,9 @@ $('#pPp').onclick=$('#pp').onclick=toggle;
 $('#pillGo').onclick=()=>show('np');
 $('#prev').onclick=prev;$('#next').onclick=next;$('#back').onclick=()=>skip(-10);$('#fwd').onclick=()=>skip(10);
 $('#bShuf').onclick=shuffleAll;$('#bPlay').onclick=()=>{if(V.length)startQueue(V,0)};
-$('#bSearch').onclick=()=>{const q=$('#q');q.hidden=!q.hidden;if(!q.hidden)q.focus();else{q.value='';renderList()}};
+
 $('#q').oninput=renderList;
-$('#openSet').onclick=()=>{show('set');refreshBp()};$('#setBack').onclick=()=>show('lib');
+
 $('#pick').onclick=pickFolder;$('#chFolder').onclick=pickFolder;
 $('#rescan').onclick=async()=>{show('lib');await loadLibrary(true)};
 const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
@@ -554,6 +598,26 @@ $('#eqPre').onclick=e=>{const b=e.target.closest('[data-n]');if(b){eqG=PRESETS[b
 $('#eqBands').oninput=e=>{const i=e.target.dataset.b;if(i==null)return;eqG[+i]=+e.target.value;e.target.style.setProperty('--p',((eqG[+i]+12)/24*100)+'%');e.target.nextElementSibling.textContent=(eqG[+i]>0?'+':'')+eqG[+i]+' dB';eqSave()};
 $('#eqT').onclick=()=>{eqOn=!eqOn;ls.set('mp_eq',eqOn?'1':'0');if(eqOn){eqEnsure();if(eqCtx)eqCtx.resume().catch(()=>{})}eqApply();renderEq()};
 $('#eqOpen').onclick=()=>{show('eq');renderEq()};$('#eqBack').onclick=()=>show('set');
+
+
+/* ---------- library layouts + bottom bar ---------- */
+const VM={list:'List',compact:'Compact',small:'Small icons',medium:'Medium icons',blocks:'Blocks'};
+let vmode=ls.get('mp_view');if(!VM[vmode])vmode='list';
+function applyView(){
+  $('#list').className='v-'+vmode+(/^(small|medium|blocks)$/.test(vmode)?' grid':'');
+  $('#vmenu .vm').innerHTML=Object.keys(VM).map(k=>'<button role="menuitem" data-m="'+k+'">'+VM[k]+'<b>'+(k===vmode?'✓':'')+'</b></button>').join('');
+}
+$('#bView').onclick=()=>{$('#vmenu').hidden=false};
+$('#vmenu').onclick=e=>{const b=e.target.closest('[data-m]');if(b){vmode=b.dataset.m;ls.set('mp_view',vmode);applyView()}$('#vmenu').hidden=true};
+function setNav(t){document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+function tab(t){
+  if(t==='set'){show('set');refreshBp();return}
+  const sr=t==='search',q=$('#q');q.hidden=!sr;
+  if(!sr&&q.value){q.value='';renderList()}
+  show('lib');setNav(t);if(sr)q.focus();else{const l=$('#lib');l.scrollTop=0}
+}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
+applyView();
 
 render();loadLibrary(false);
 })();
