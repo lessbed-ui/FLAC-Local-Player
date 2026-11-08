@@ -113,6 +113,14 @@ body.blurbg .npbg{display:block;position:absolute;inset:-6%;z-index:0;background
 body.blurbg #np{background:#0c0c10}
 #np>*:not(.npbg){position:relative;z-index:1}
 .bp{font-size:12px;font-weight:700;color:var(--accent);min-height:16px;text-align:center}
+
+.trow{display:flex;align-items:center;justify-content:center;gap:4px;max-width:100%}
+.hb{font-size:26px;width:44px;height:44px;flex:none;color:var(--sub)}.hb.on{color:var(--accent)}
+.pillbtn.on{background:var(--accent);color:var(--on);border-color:transparent}
+#eq{z-index:20;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 8px) 20px 24px}
+.chip{border:1.5px solid var(--line);border-radius:999px;min-height:40px;padding:0 16px;font-weight:600;width:auto!important;height:auto!important}
+.chip.on{background:var(--accent);color:var(--on);border-color:transparent}
+.cl em{font-style:normal;width:58px;text-align:right;font-variant-numeric:tabular-nums}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
@@ -130,6 +138,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="pillbtn" id="bShuf" aria-label="Shuffle all">⤨</button>
     <button class="pillbtn" id="bPlay" aria-label="Play all">▶</button>
     <button class="pillbtn" id="bSearch" aria-label="Search">⌕</button>
+    <button class="pillbtn" id="bFav" aria-label="Show favorites only">♡</button>
   </div>
   <input id="q" type="search" placeholder="Search songs, artists, albums" hidden>
   <p id="stat" role="status"></p>
@@ -147,7 +156,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="npbg" id="npBg"></div>
   <div class="grab" aria-hidden="true"></div>
   <div class="cover" id="cover"></div>
-  <h1 id="title"></h1><div class="artist" id="artist"></div>
+  <div class="trow"><h1 id="title"></h1><button class="hb" id="fav" aria-label="Favorite">♡</button></div><div class="artist" id="artist"></div>
   <div class="badge" id="badge"></div><div class="details" id="details"></div><div class="bp" id="bpStat"></div>
   <div class="seekwrap"><input type="range" id="seek" min="0" max="1000" value="0" step="1" disabled aria-label="Seek"><div class="times"><span id="tc">0:00</span><span id="tt">0:00</span></div></div>
   <div class="ctrl">
@@ -175,12 +184,21 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <button class="item" id="chFolder"><span>Music folder<small id="folderName">Not chosen</small></span><span>Change</span></button>
   <button class="item" id="rescan"><span>Rescan library<small>Pick up songs you added or removed</small></span><span>Scan</span></button>
   <button class="item" id="theme"><span>Theme<small>Switch between light and dark</small></span><span>◐</span></button>
+  <button class="item" id="eqOpen"><span>Equalizer<small>10 bands with presets</small></span><span>›</span></button>
   <button class="item" id="blurT"><span>Blurred art background<small>Use the playing song’s cover as the background</small></span><span id="blurState">Off</span></button>
   <div class="item acc"><span>Accent color</span><div class="sw" id="sw"></div>
     <label class="cl"><span>Hue</span><input class="cs" type="range" id="aH" min="0" max="360"></label>
     <label class="cl"><span>Saturation</span><input class="cs" type="range" id="aS" min="20" max="100"></label>
     <label class="cl"><span>Brightness</span><input class="cs" type="range" id="aL" min="30" max="75"></label></div>
   <button class="item" id="bpT"><span>Bit-perfect audio (USB DAC)<small id="bpInfo">Checking…</small></span><span id="bpState">Off</span></button>
+</section>
+
+<section class="scr" id="eq" hidden>
+  <button class="pillbtn" id="eqBack" style="align-self:flex-start;margin:8px 0">← Back</button>
+  <h2 style="margin:8px 0">Equalizer</h2>
+  <button class="item" id="eqT"><span>Equalizer<small id="eqNote">Applies to normal playback. Bit-perfect mode skips it on purpose.</small></span><span id="eqState">Off</span></button>
+  <div class="sw" id="eqPre" style="margin:14px 0"></div>
+  <div id="eqBands"></div>
 </section>
 
 <section class="scr" id="setup" hidden>
@@ -218,14 +236,14 @@ function prep(t){
   if(t.ch)d.push(t.ch===1?'Mono':t.ch===2?'Stereo':t.ch+' ch');
   t.details=d.join(' · ');
   t.dHtml=d.map((x,i)=>'<span class="dp">'+esc(x)+(i<d.length-1?' ·':'')+'</span>').join(' ');
-  t.badge=t.lossless?((t.bits>16||t.rate>48000)?'Hi-Res Lossless':'Lossless'):'';
+  t.badge=t.lossless?((t.bits>16||t.rate>48000)?'Hi-Res Lossless':(t.bits===16&&t.rate===44100?'CD Quality':'Lossless')):(t.ext?'Lossy':'');
   const c=(t.title.trim()[0]||'#').toUpperCase();t.letter=/[A-Z]/.test(c)?c:'#';
 }
 const thumb=t=>t&&t.artUrl?'<img alt="" loading="lazy" src="'+t.artUrl+'">':WAVE;
-function rowHtml(t,i,q){return '<div class="row" data-i="'+i+'" data-l="'+t.letter+'"><div class="bg">Play next</div>'+(q?'<div class="bg r">Remove</div>':'')+'<div class="fg"><span class="th">'+thumb(t)+'</span><span class="tx"><b>'+esc(t.title)+'</b><span>'+esc(t.artist+(t.album?' - '+t.album:''))+'</span><small>'+(t.lossless?WAVE:'')+'<span class="dl">'+t.dHtml+'</span></small></span></div></div>'}
+function rowHtml(t,i,q){return '<div class="row" data-i="'+i+'" data-l="'+t.letter+'"><div class="bg">Play next</div>'+(q?'<div class="bg r">Remove</div>':'')+'<div class="fg"><span class="th">'+thumb(t)+'</span><span class="tx"><b>'+(isFav(t)?'♥ ':'')+esc(t.title)+'</b><span>'+esc(t.artist+(t.album?' - '+t.album:''))+'</span><small>'+(t.lossless?WAVE:'')+'<span class="dl">'+t.dHtml+'</span></small></span></div></div>'}
 function renderList(){
   const f=$('#q').value.trim().toLowerCase();
-  V=f?L.filter(t=>(t.title+' '+t.artist+' '+t.album).toLowerCase().includes(f)):L;
+  const base=favOnly?L.filter(isFav):L;V=f?base.filter(t=>(t.title+' '+t.artist+' '+t.album).toLowerCase().includes(f)):base;
   $('#list').innerHTML=V.map((t,i)=>rowHtml(t,i,false)).join('')||'<p class="details" style="padding:24px 0">No songs found.</p>';
   const letters='#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   $('#idx').innerHTML=letters.map(l=>'<button data-j="'+l+'">'+l+'</button>').join('');
@@ -265,7 +283,7 @@ async function playCur(){
       if(A===B){Eng.stop();B.halt();A=AU}
       lastInfo=null;
       const r=await Lib.prepare({uri:t.uri,ext:t.ext});if(my!==tok)return;
-      A.src=conv(r.path);loaded=true;A.play().catch(()=>toast('Can’t play this file on this device.'));
+      A.src=conv(r.path);loaded=true;if(eqOn)eqEnsure();if(eqCtx&&eqCtx.state==='suspended')eqCtx.resume().catch(()=>{});A.play().catch(()=>toast('Can’t play this file on this device.'));
     }catch(e){if(my===tok)toast('Couldn’t open this song.')}
   }
   showBp();render();
@@ -294,20 +312,20 @@ function render(){
   $('#cover').innerHTML=thumb(t);$('#pTh').innerHTML=thumb(t);
   $('#title').textContent=t?t.title:'';$('#artist').textContent=t?t.artist:'';
   $('#pT').textContent=t?t.title:'';$('#pA').textContent=t?t.artist:'';
-  $('#badge').innerHTML=t&&t.badge?WAVE+'<span>'+esc(t.badge)+'</span>':'';
+  $('#badge').innerHTML=t&&t.badge?(t.lossless?WAVE:'')+'<span>'+esc(t.badge)+'</span>':'';
   $('#details').textContent=t?t.details:'';
   S.disabled=!loaded;if(!loaded){S.value=0;fill();$('#tc').textContent='0:00'}
   $('#tt').textContent=fmt(t?t.length:0);
   syncPlay();mark();updExtra();
 }
 function show(v){
-  view=v;$('#np').hidden=v!=='np';$('#qs').hidden=v!=='q';$('#set').hidden=v!=='set';
+  view=v;$('#np').hidden=v!=='np';$('#qs').hidden=v!=='q';$('#set').hidden=v!=='set';$('#eq').hidden=v!=='eq';
   $('#pill').style.display=v==='lib'?'':'none';
   if(v==='lib')libVis(true);else if(v==='np')setTimeout(()=>{if(view!=='lib')libVis(false)},240);else libVis(false);
   if(v==='q')renderQ();
 }
 function libVis(on){$('#lib').style.visibility=on?'':'hidden';$('#idx').style.visibility=on?'':'hidden'}
-window.__back=()=>{if(view==='q'){show('np');return true}if(view==='set'){show('lib');return true}if(view==='np'){minimize();return true}return false};
+window.__back=()=>{if(view==='eq'){show('set');return true}if(view==='q'){show('np');return true}if(view==='set'){show('lib');return true}if(view==='np'){minimize();return true}return false};
 function minimize(){const n=$('#np');libVis(true);n.style.transition='transform .2s';n.style.transform='translateY(100%)';setTimeout(()=>{show('lib');n.style.transition='';n.style.transform=''},200)}
 document.addEventListener('click',e=>{
   const j=e.target.closest('[data-j]');
@@ -397,7 +415,7 @@ function updUtil(){
 function updExtra(){
   const n=Q.length?(Q[qi+1]||((rpt==='all'||shuf)?Q[0]:null)):null;
   $('#nextUp').innerHTML=(n?'<span class="th">'+thumb(n)+'</span><span class="tx"><small>Up next</small><b>'+esc(n.title)+'</b></span>':'<span class="tx"><small>Up next</small><b>End of queue</b></span>')+'<span class="chev">☰</span>';
-  updUtil();applyBlur();if(view==='q')renderQ();
+  updUtil();applyBlur();updFav();if(view==='q')renderQ();
 }
 $('#uShuf').onclick=()=>{shuf=!shuf;updUtil()};
 $('#uRep').onclick=()=>{rpt=rpt==='off'?'all':rpt==='all'?'one':'off';updExtra()};
@@ -496,6 +514,46 @@ async function refreshBp(){
   }catch(x){e.textContent='Couldn’t check the audio engine.'}
 }
 $('#bpT').onclick=()=>{bpOn=!bpOn;ls.set('mp_bp',bpOn?'1':'0');refreshBp();toast(bpOn?'Bit-perfect on. Applies from the next song.':'Bit-perfect off. Applies from the next song.')};
+
+
+/* ---------- favorites ---------- */
+let fav=new Set(),favOnly=false;try{fav=new Set(JSON.parse(ls.get('mp_fav')||'[]'))}catch(e){}
+const isFav=t=>!!t&&fav.has(t.uri);
+function updFav(){const b=$('#fav'),on=isFav(cur());b.textContent=on?'♥':'♡';b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on))}
+$('#fav').onclick=()=>{const t=cur();if(!t)return;if(fav.has(t.uri))fav.delete(t.uri);else fav.add(t.uri);ls.set('mp_fav',JSON.stringify([...fav]));updFav();renderList()};
+$('#bFav').onclick=()=>{favOnly=!favOnly;$('#bFav').classList.toggle('on',favOnly);$('#bFav').textContent=favOnly?'♥':'♡';renderList();$('#stat').textContent=favOnly?V.length+' favorites':L.length+' songs'};
+
+/* ---------- equalizer (normal playback only) ---------- */
+const BANDS=[32,64,125,250,500,1000,2000,4000,8000,16000];
+const PRESETS={Flat:[0,0,0,0,0,0,0,0,0,0],'Bass boost':[6,5,4,2,0,0,0,0,0,0],'Treble boost':[0,0,0,0,0,1,2,4,5,6],Vocal:[-2,-2,-1,1,3,3,2,0,-1,-2],Rock:[4,3,2,-1,-2,-1,2,3,4,4],Loudness:[5,3,0,-1,-1,0,-1,3,4,5]};
+let eqOn=ls.get('mp_eq')==='1',eqG=BANDS.map(()=>0),eqCtx=null,eqF=[],eqPre=null;
+try{const g=JSON.parse(ls.get('mp_eqg'));if(Array.isArray(g)&&g.length===10)eqG=g.map(Number)}catch(e){}
+function eqEnsure(){
+  const AC=window.AudioContext||window.webkitAudioContext;if(eqCtx||!AC)return;
+  try{
+    eqCtx=new AC();let node=eqCtx.createMediaElementSource(AU);
+    eqPre=eqCtx.createGain();node.connect(eqPre);node=eqPre;
+    eqF=BANDS.map((f,i)=>{const b=eqCtx.createBiquadFilter();b.type=i===0?'lowshelf':i===9?'highshelf':'peaking';b.frequency.value=f;b.Q.value=1.1;node.connect(b);node=b;return b});
+    node.connect(eqCtx.destination);
+    eqCtx.onstatechange=()=>{if(eqCtx.state==='suspended'&&A===AU&&!AU.paused)eqCtx.resume().catch(()=>{})};
+    eqApply();
+  }catch(e){eqCtx=null}
+}
+function eqApply(){
+  if(!eqCtx)return;
+  eqF.forEach((b,i)=>{b.gain.value=eqOn?eqG[i]:0});
+  eqPre.gain.value=eqOn?Math.pow(10,-Math.max(0,...eqG)/20):1;
+}
+function renderEq(){
+  $('#eqState').textContent=eqOn?'On':'Off';
+  $('#eqPre').innerHTML=Object.keys(PRESETS).map(n=>'<button class="chip'+(PRESETS[n].every((v,i)=>v===eqG[i])?' on':'')+'" data-n="'+n+'">'+n+'</button>').join('');
+  $('#eqBands').innerHTML=BANDS.map((f,i)=>'<label class="cl"><span>'+(f>=1000?f/1000+' kHz':f+' Hz')+'</span><input type="range" min="-12" max="12" step="0.5" value="'+eqG[i]+'" data-b="'+i+'" style="--p:'+((eqG[i]+12)/24*100)+'%"><em>'+(eqG[i]>0?'+':'')+eqG[i]+' dB</em></label>').join('');
+}
+function eqSave(){ls.set('mp_eqg',JSON.stringify(eqG));eqApply()}
+$('#eqPre').onclick=e=>{const b=e.target.closest('[data-n]');if(b){eqG=PRESETS[b.dataset.n].slice();eqSave();renderEq()}};
+$('#eqBands').oninput=e=>{const i=e.target.dataset.b;if(i==null)return;eqG[+i]=+e.target.value;e.target.style.setProperty('--p',((eqG[+i]+12)/24*100)+'%');e.target.nextElementSibling.textContent=(eqG[+i]>0?'+':'')+eqG[+i]+' dB';eqSave()};
+$('#eqT').onclick=()=>{eqOn=!eqOn;ls.set('mp_eq',eqOn?'1':'0');if(eqOn){eqEnsure();if(eqCtx)eqCtx.resume().catch(()=>{})}eqApply();renderEq()};
+$('#eqOpen').onclick=()=>{show('eq');renderEq()};$('#eqBack').onclick=()=>show('set');
 
 render();loadLibrary(false);
 })();
