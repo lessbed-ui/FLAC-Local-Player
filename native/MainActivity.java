@@ -16,6 +16,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NativeAudioPlugin.class);
         registerPlugin(MusicLibraryPlugin.class);
+        registerPlugin(NativeEnginePlugin.class);
         super.onCreate(savedInstanceState);
         WebView wv = safeWebView();
         if (wv != null) wv.getSettings().setMediaPlaybackRequiresUserGesture(false);

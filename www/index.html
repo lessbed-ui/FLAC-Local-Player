@@ -112,6 +112,7 @@ body.blurbg #setup{background:#0c0c10}
 body.blurbg .npbg{display:block;position:absolute;inset:-6%;z-index:0;background-size:cover;background-position:center;background-image:linear-gradient(160deg,#2b2b34,#0c0c10);filter:blur(38px) brightness(.55) saturate(1.35)}
 body.blurbg #np{background:#0c0c10}
 #np>*:not(.npbg){position:relative;z-index:1}
+.bp{font-size:12px;font-weight:700;color:var(--accent);min-height:16px;text-align:center}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
 </head>
@@ -147,7 +148,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="grab" aria-hidden="true"></div>
   <div class="cover" id="cover"></div>
   <h1 id="title"></h1><div class="artist" id="artist"></div>
-  <div class="badge" id="badge"></div><div class="details" id="details"></div>
+  <div class="badge" id="badge"></div><div class="details" id="details"></div><div class="bp" id="bpStat"></div>
   <div class="seekwrap"><input type="range" id="seek" min="0" max="1000" value="0" step="1" disabled aria-label="Seek"><div class="times"><span id="tc">0:00</span><span id="tt">0:00</span></div></div>
   <div class="ctrl">
     <button class="ib t" id="back" aria-label="Back 10 seconds">−10</button>
@@ -179,7 +180,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <label class="cl"><span>Hue</span><input class="cs" type="range" id="aH" min="0" max="360"></label>
     <label class="cl"><span>Saturation</span><input class="cs" type="range" id="aS" min="20" max="100"></label>
     <label class="cl"><span>Brightness</span><input class="cs" type="range" id="aL" min="30" max="75"></label></div>
-  <button class="item" disabled><span>Bit-perfect audio<small>Not available yet. It needs a native audio engine, which isn’t built in this version.</small></span><span>Off</span></button>
+  <button class="item" id="bpT"><span>Bit-perfect audio (USB DAC)<small id="bpInfo">Checking…</small></span><span id="bpState">Off</span></button>
 </section>
 
 <section class="scr" id="setup" hidden>
@@ -193,8 +194,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <script>
 (()=>{
-const $=s=>document.querySelector(s),A=$('#audio'),root=document.documentElement;
-const C=window.Capacitor||{},P=C.Plugins||{},Lib=P.MusicLibrary,NA=P.NativeAudio;
+const $=s=>document.querySelector(s),AU=$('#audio'),root=document.documentElement;let A=AU;
+const C=window.Capacitor||{},P=C.Plugins||{},Lib=P.MusicLibrary,NA=P.NativeAudio,Eng=P.NativeEngine;
 const conv=p=>p&&C.convertFileSrc?C.convertFileSrc('file://'+p):'';
 const PLAY='<svg viewBox="0 0 24 24"><path d="M9 6.5v11l9-5.5z" fill="currentColor"/></svg>';
 const PAUSE='<svg viewBox="0 0 24 24"><rect x="8" y="6.5" width="2.8" height="11" rx="1" fill="currentColor"/><rect x="13.2" y="6.5" width="2.8" height="11" rx="1" fill="currentColor"/></svg>';
@@ -254,12 +255,20 @@ async function pickFolder(){
 function startQueue(list,i){Q=list.slice();qi=i;playCur();show('np')}
 async function playCur(){
   const t=cur();if(!t)return;const my=++tok;loaded=false;render();
-  try{
-    const r=await Lib.prepare({uri:t.uri,ext:t.ext});if(my!==tok)return;
-    A.src=conv(r.path);loaded=true;
-    A.play().catch(()=>toast('Can’t play this file on this device.'));
-  }catch(e){if(my===tok)toast('Couldn’t open this song.')}
-  render();
+  let done=false;
+  if(bpOn&&Eng&&t.lossless){
+    try{if(A!==B){AU.pause();A=B}await B.load(t);if(my!==tok)return;loaded=true;done=true}
+    catch(e){if(my!==tok)return;B.halt();A=AU;toast('Bit-perfect engine couldn’t open this song. Using normal playback.')}
+  }
+  if(!done){
+    try{
+      if(A===B){Eng.stop();B.halt();A=AU}
+      lastInfo=null;
+      const r=await Lib.prepare({uri:t.uri,ext:t.ext});if(my!==tok)return;
+      A.src=conv(r.path);loaded=true;A.play().catch(()=>toast('Can’t play this file on this device.'));
+    }catch(e){if(my===tok)toast('Couldn’t open this song.')}
+  }
+  showBp();render();
 }
 function next(){if(!Q.length)return;qi=shuf&&Q.length>1?(()=>{let i;do{i=Math.floor(Math.random()*Q.length)}while(i===qi);return i})():(qi+1)%Q.length;playCur()}
 function prev(){if(!Q.length)return;if(loaded&&A.currentTime>3)A.currentTime=0;else{qi=(qi-1+Q.length)%Q.length;playCur()}}
@@ -328,7 +337,7 @@ $('#prev').onclick=prev;$('#next').onclick=next;$('#back').onclick=()=>skip(-10)
 $('#bShuf').onclick=shuffleAll;$('#bPlay').onclick=()=>{if(V.length)startQueue(V,0)};
 $('#bSearch').onclick=()=>{const q=$('#q');q.hidden=!q.hidden;if(!q.hidden)q.focus();else{q.value='';renderList()}};
 $('#q').oninput=renderList;
-$('#openSet').onclick=()=>show('set');$('#setBack').onclick=()=>show('lib');
+$('#openSet').onclick=()=>{show('set');refreshBp()};$('#setBack').onclick=()=>show('lib');
 $('#pick').onclick=pickFolder;$('#chFolder').onclick=pickFolder;
 $('#rescan').onclick=async()=>{show('lib');await loadLibrary(true)};
 const isDark=()=>root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
@@ -336,10 +345,13 @@ const st=ls.get('mp_theme');if(st==='dark'||st==='light')root.dataset.theme=st;
 $('#theme').onclick=()=>{const n=isDark()?'light':'dark';root.dataset.theme=n;ls.set('mp_theme',n)};
 S.oninput=()=>{dragging=true;$('#tc').textContent=fmt(S.value/1000*dur());fill()};
 S.onchange=()=>{const d=dur();if(d&&loaded)A.currentTime=Math.min(S.value/1000*d,Math.max(0,d-.5));dragging=false};
-['timeupdate','durationchange','loadedmetadata'].forEach(ev=>A.addEventListener(ev,tick));
-A.addEventListener('play',syncPlay);A.addEventListener('pause',syncPlay);
-A.addEventListener('ended',()=>{if(rpt==='one'){A.currentTime=0;A.play().catch(()=>{});return}if(rpt==='off'&&!shuf&&qi>=Q.length-1){syncPlay();return}next()});
-A.addEventListener('error',()=>{if(A.getAttribute('src'))toast('Can’t play this file on this device.')});
+function bind(X){
+  ['timeupdate','durationchange','loadedmetadata'].forEach(ev=>X.addEventListener(ev,tick));
+  X.addEventListener('play',syncPlay);X.addEventListener('pause',syncPlay);
+  X.addEventListener('ended',()=>{if(X!==A)return;if(rpt==='one'){if(A===B)playCur();else{A.currentTime=0;A.play().catch(()=>{})}return}if(rpt==='off'&&!shuf&&qi>=Q.length-1){syncPlay();return}next()});
+  X.addEventListener('error',()=>{if(X===A&&A.getAttribute('src'))toast('Can’t play this file on this device.')});
+  if(NA)['play','pause','seeked','loadedmetadata'].forEach(ev=>X.addEventListener(ev,nativeSync));
+}
 
 /* ---------- background playback + lock-screen controls (native) ---------- */
 async function artOf(t){
@@ -354,7 +366,7 @@ async function nativeSync(){
   try{NA.update({title:t.title,artist:t.artist,album:t.album,playing:playing(),position:A.currentTime||0,duration:dur(),art:artCache.b})}catch(e){}
 }
 if(NA){
-  ['play','pause','seeked','loadedmetadata'].forEach(ev=>A.addEventListener(ev,nativeSync));
+  
   try{NA.addListener('action',e=>{switch(e&&e.action){
     case'play':if(loaded)A.play().catch(()=>{});else toggle();break;
     case'pause':A.pause();break;case'toggle':toggle();break;case'next':next();break;case'prev':prev();break;
@@ -390,7 +402,7 @@ function updExtra(){
 $('#uShuf').onclick=()=>{shuf=!shuf;updUtil()};
 $('#uRep').onclick=()=>{rpt=rpt==='off'?'all':rpt==='all'?'one':'off';updExtra()};
 $('#uSleep').onclick=()=>{const SL=[0,15,30,45,60];slp=SL[(SL.indexOf(slp)+1)%SL.length];clearTimeout(slpT);if(slp)slpT=setTimeout(()=>{A.pause();slp=0;updUtil();toast('Sleep timer: paused')},slp*60000);updUtil()};
-$('#uSpd').onclick=()=>{const SP=[1,1.25,1.5,2,0.75];spd=SP[(SP.indexOf(spd)+1)%SP.length];A.defaultPlaybackRate=A.playbackRate=spd;updUtil()};
+$('#uSpd').onclick=()=>{if(A===B){toast('Speed isn’t available in bit-perfect mode');return}const SP=[1,1.25,1.5,2,0.75];spd=SP[(SP.indexOf(spd)+1)%SP.length];A.defaultPlaybackRate=A.playbackRate=spd;updUtil()};
 $('#uQ').onclick=$('#nextUp').onclick=()=>show('q');
 $('#qClose').onclick=()=>show('np');
 $('#qClear').onclick=()=>{Q.length=qi+1;updExtra()};
@@ -431,6 +443,59 @@ $('#sw').innerHTML=PRE.map((p,i)=>'<button data-p="'+i+'" aria-label="Accent pre
 $('#sw').onclick=e=>{const b=e.target.closest('[data-p]');if(b){const p=PRE[+b.dataset.p];acc={h:p[0],s:p[1],l:p[2]};applyAcc()}};
 ['aH','aS','aL'].forEach(id=>{$('#'+id).oninput=()=>{acc={h:+$('#aH').value,s:+$('#aS').value,l:+$('#aL').value};applyAcc()}});
 applyAcc();
+
+
+/* ---------- bit-perfect engine (native, USB DAC, lossless files) ---------- */
+let bpOn=ls.get('mp_bp')==='1',lastInfo=null;
+const B=(()=>{
+  const L={};let st={cur:0,dur:0,playing:false,ended:false,at:0},id=0,act=0;
+  const emit=ev=>(L[ev]||[]).slice().forEach(f=>{try{f()}catch(e){}});
+  const o={
+    get currentTime(){return st.cur+(st.playing?(performance.now()-st.at)/1000:0)},
+    set currentTime(v){st.cur=v;st.at=performance.now();Eng.seek({ms:Math.round(v*1000)});emit('timeupdate')},
+    get duration(){return st.dur},get paused(){return!st.playing},get ended(){return st.ended},
+    playbackRate:1,defaultPlaybackRate:1,
+    play(){if(!st.ended){act=performance.now();Eng.resume();st.at=performance.now();st.playing=true;emit('play')}return Promise.resolve()},
+    pause(){act=performance.now();Eng.pause();st.cur=o.currentTime;st.playing=false;emit('pause')},
+    addEventListener(ev,f){(L[ev]=L[ev]||[]).push(f)},
+    getAttribute(){return'native'},
+    halt(){st.playing=false;id=0},
+    async load(t){
+      const r=await Eng.load({uri:t.uri,ext:t.ext,bits:t.bits||0,bp:bpOn});
+      id=r.id;act=performance.now();lastInfo=r;
+      st={cur:0,dur:(r.durMs||0)/1000||t.length,playing:true,ended:false,at:performance.now()};
+      emit('loadedmetadata');emit('durationchange');emit('play');emit('timeupdate');
+    },
+    _state(s){
+      if(s.id!==id||A!==o)return;const was=st.playing;
+      st.cur=s.pos/1000;st.at=performance.now();if(s.dur)st.dur=s.dur/1000;
+      if(performance.now()-act>700)st.playing=!!s.playing;
+      if(s.ended){st.playing=false;st.ended=true}
+      emit('timeupdate');if(was!==st.playing)emit(st.playing?'play':'pause');
+      if(s.ended)emit('ended');else if(s.error)emit('error');
+    }
+  };
+  if(Eng)try{Eng.addListener('state',s=>o._state(s))}catch(e){}
+  return o;
+})();
+bind(AU);bind(B);
+function showBp(i=lastInfo){
+  const e=$('#bpStat'),t=cur();
+  if(!bpOn||!t||!t.lossless){e.textContent='';return}
+  if(A===B&&i&&i.bp)e.textContent='Bit-perfect · '+i.depth+'-bit · '+(i.rate/1000)+' kHz · '+(i.dev||'USB DAC');
+  else e.textContent='Not bit-perfect: '+((i&&i.note)||'using normal playback');
+}
+async function refreshBp(){
+  $('#bpState').textContent=bpOn?'On':'Off';
+  const e=$('#bpInfo');
+  if(!Eng){e.textContent='Only available in the Android app.';return}
+  try{
+    const i=await Eng.info();
+    e.textContent=i.sdk<34?'Needs Android 14 or newer.':!i.usb?'Lossless files only. No USB DAC detected: plug it in, then reopen this screen.':
+      i.usb+' · '+(i.formats?i.formats+' bit-perfect formats. Android’s volume is bypassed, so use your DAC’s volume.':'this phone doesn’t offer bit-perfect over this DAC.');
+  }catch(x){e.textContent='Couldn’t check the audio engine.'}
+}
+$('#bpT').onclick=()=>{bpOn=!bpOn;ls.set('mp_bp',bpOn?'1':'0');refreshBp();toast(bpOn?'Bit-perfect on. Applies from the next song.':'Bit-perfect off. Applies from the next song.')};
 
 render();loadLibrary(false);
 })();
